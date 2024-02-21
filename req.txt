@@ -1,0 +1,7 @@
+scikit-learn
+pandas
+numpy
+tensorflow
+https://www.tensorflow.org/install/pip#linux_1
+
+https://www.tensorflow.org/decision_forests/tutorials/beginner_colab
