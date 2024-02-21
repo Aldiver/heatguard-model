@@ -1,34 +1,58 @@
+import os
+# Keep using Keras 2
+os.environ['TF_USE_LEGACY_KERAS'] = '1'
+
 import tensorflow_decision_forests as tfdf
+
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
 import tensorflow as tf
+import tf_keras
+import math
 
-# Load the dataset
-data = pd.read_csv('heatstroke.csv')
+dataset_df = pd.read_csv("heatstroke.csv")
 
-# Split the dataset into features (X) and target variable (y)
-X = data.drop('heatstroke', axis=1)
-y = data['heatstroke']
+# Display the first 3 examples.
+print(dataset_df.head(3))
 
-# Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+label = "heatstroke"
 
-# Create and train the decision tree classifier
-clf = DecisionTreeClassifier()
-clf.fit(X_train, y_train)
+classes = dataset_df[label].unique().tolist()
+print(f"Label classes: {classes}")
 
-# Convert the trained model to a TensorFlow Decision Forests model
-tfdf_model = tfdf.keras.get_native_model(clf)
+dataset_df[label] = dataset_df[label].map(classes.index)
 
-# Export the TensorFlow Decision Forests model
-tfdf_model.save("tfdf_model")
+print(dataset_df[label])
 
-# Convert the TensorFlow SavedModel to TensorFlow Lite
-converter = tf.lite.TFLiteConverter.from_saved_model("tfdf_model")
-tflite_model = converter.convert()
+def split_dataset(dataset, test_ratio=0.20):
+  """Splits a panda dataframe in two."""
+  test_indices = np.random.rand(len(dataset)) < test_ratio
+  return dataset[~test_indices], dataset[test_indices]
 
-# Save the TensorFlow Lite model to a file
-with open("tfdf_model.tflite", "wb") as f:
-    f.write(tflite_model)
+
+train_ds_pd, test_ds_pd = split_dataset(dataset_df)
+print("{} examples in training, {} examples for testing.".format(
+    len(train_ds_pd), len(test_ds_pd)))
+
+train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_ds_pd, label=label)
+test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_ds_pd, label=label)
+
+
+# Specify the model.
+model_1 = tfdf.keras.RandomForestModel(verbose=2)
+
+# Train the model.
+model_1.fit(train_ds)
+
+#Evaluate the model
+model_1.compile(metrics=["accuracy"])
+evaluation = model_1.evaluate(test_ds, return_dict=True)
+print()
+
+for name, value in evaluation.items():
+  print(f"{name}: {value:.4f}")
+
+model_1.save("model2")
+
+print("model summary")
+model_1.summary()

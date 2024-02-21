@@ -1,49 +1,62 @@
-import tensorflow as tf
 import pandas as pd
+import tensorflow_decision_forests as tfdf
+import tensorflow as tf
+import tf_keras
 
-# Load the saved TensorFlow Decision Forests model
-loaded_model = tf.saved_model.load("tfdf_model")
 
-# Function to get input from user
-def get_input(feature_name):
-    value = input(f"{feature_name} = ")
-    return float(value)
+# Load the trained model
+model = tf.keras.models.load_model("model2")
+print(model.summary())
+def preprocess_input(core_temp, ambient_temp, ambient_humidity, bmi, heart_rate, age, skin_resistance):
+    # Create a dictionary with input data
+    data = {
+        "coreTemp": [core_temp],
+        "ambientTemp": [ambient_temp],
+        "ambientHumidity": [ambient_humidity],
+        "bmi": [bmi],
+        "heartRate": [heart_rate],
+        "age": [age],
+        "skinRes": [int(skin_resistance)]  # Ensure skinRes is represented as int64
+    }
+    # Create a DataFrame from the dictionary
+    input_df = pd.DataFrame(data)
+    # Convert data types to match model's expectations (if necessary)
+    input_df = input_df.astype({"coreTemp": "float32", "ambientTemp": "float32", "ambientHumidity": "float32",
+                                 "bmi": "float32", "heartRate": "float32", "age": "float32", "skinRes": "int64"})
+    return input_df
 
-# Guide display for user input
-print("Enter data (Example)")
-print("Core Temp = 39")
-print("Ambient Temp = 40.8")
-print("Ambient Humidity = 0.4")
-print("BMI = 24")
-print("Heart Rate = 166")
-print("Age = 38")
-print("Skin Resistance (0 for not dry, 1 for dry) = 0")
+# Function to make predictions
+def predict(input_df, model):
+    # Convert input DataFrame to a TensorFlow dataset
+    input_ds = tfdf.keras.pd_dataframe_to_tf_dataset(input_df)
+    # Make predictions using the model
+    predictions = model.predict(input_ds)
+    return predictions
 
-# Get input for each feature
-coreTemp = get_input("Core Temp")
-ambientTemp = get_input("Ambient Temp")
-ambientHumidity = get_input("Ambient Humidity")
-bmi = get_input("BMI")
-heartRate = get_input("Heart Rate")
-age = get_input("Age")
-skinRes = get_input("Skin Resistance (0 for not dry, 1 for dry)")
+# Example input data
+core_temp = 39
+ambient_temp = 40.8
+ambient_humidity = 0.4
+bmi = 24
+heart_rate = 166
+age = 38
+skin_resistance = 0
 
-# Prepare input data
-input_data = {
-    'coreTemp': tf.constant(coreTemp, dtype=tf.float32),
-    'ambientTemp': tf.constant(ambientTemp, dtype=tf.float32),
-    'ambientHumidity': tf.constant(ambientHumidity, dtype=tf.float32),
-    'bmi': tf.constant(bmi, dtype=tf.float32),
-    'heartRate': tf.constant(heartRate, dtype=tf.float32),
-    'age': tf.constant(age, dtype=tf.float32),
-    'skinRes': tf.constant(skinRes, dtype=tf.float32)
-}
+# Preprocess the input data
+input_df = preprocess_input(core_temp, ambient_temp, ambient_humidity, bmi, heart_rate, age, skin_resistance)
 
 # Make predictions
-output = loaded_model(input_data)
+predictions = predict(input_df, model)
 
-# Convert output to probability
-probability = tf.sigmoid(output)
+# Print the predictions
+print("Predictions:")
+print(predictions)
 
-# Print the predicted probability
-print("Predicted probability of having heatstroke:", probability.numpy())
+
+threshold = 0.5  # Threshold for binary classification
+
+# Convert probability score to binary prediction
+binary_prediction = 1 if predictions[0][0] > threshold else 0
+
+# Print the binary prediction
+print("Binary Prediction:", binary_prediction)
