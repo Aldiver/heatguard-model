@@ -77,6 +77,9 @@ tflite_model = converter.convert()
 with open('model.tflite', 'wb') as f:
     f.write(tflite_model)
 
+print("Model summary")
+model.summary()
+
 # Test case
 test_input = np.array([[35.07745494,38.51249752,0.1,20.17576277,128.8443363,51,0],
                        [37.93597552,40.50572875,0.1,22.46539597,121.6937356,50,0],

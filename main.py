@@ -1,60 +1,57 @@
-import os
-# Keep using Keras 2
-os.environ['TF_USE_LEGACY_KERAS'] = '1'
-
-import tensorflow_decision_forests as tfdf
-
-import numpy as np
 import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
 import tensorflow as tf
-import tf_keras
-import math
+from tensorflow.keras import layers
+from tensorflow.keras.callbacks import EarlyStopping
 
-dataset_df = pd.read_csv("heatstroke.csv")
+# Load dataset
+df_train = pd.read_csv('heatstroke.csv')
 
-# Display the first 3 examples.
-print(dataset_df.head(3))
+# Separate features and labels
+df_features = df_train.drop(columns=['heatstroke'])
+df_labels = df_train['heatstroke']
 
-label = "heatstroke"
+# Normalize features
+normalize = layers.Normalization()
+normalize.adapt(np.array(df_features))
 
-classes = dataset_df[label].unique().tolist()
-print(f"Label classes: {classes}")
+# Split the data into training and test sets
+features_train, features_test, labels_train, labels_test = train_test_split(df_features, df_labels, test_size=0.2, random_state=42)
 
-dataset_df[label] = dataset_df[label].map(classes.index)
+# Define the model
+model = tf.keras.Sequential([
+    normalize,
+    layers.Dense(64, activation='relu'),
+    layers.Dense(1, activation='sigmoid')
+])
 
-print(dataset_df[label])
+# Compile the model
+model.compile(loss=tf.keras.losses.BinaryCrossentropy(),
+              optimizer=tf.keras.optimizers.Adam(),
+              metrics=['accuracy'])
 
-def split_dataset(dataset, test_ratio=0.20):
-  """Splits a panda dataframe in two."""
-  test_indices = np.random.rand(len(dataset)) < test_ratio
-  return dataset[~test_indices], dataset[test_indices]
+# Define early stopping to stop training when the validation loss stops improving
+early_stopping = EarlyStopping(monitor='val_loss', patience=2)
 
+# Train the model
+history = model.fit(features_train, labels_train, 
+                    validation_split=0.2, 
+                    epochs=100, 
+                    callbacks=[early_stopping])
 
-train_ds_pd, test_ds_pd = split_dataset(dataset_df)
-print("{} examples in training, {} examples for testing.".format(
-    len(train_ds_pd), len(test_ds_pd)))
+# Evaluate the model on the test set
+loss, accuracy = model.evaluate(features_test, labels_test)
 
-train_ds = tfdf.keras.pd_dataframe_to_tf_dataset(train_ds_pd, label=label)
-test_ds = tfdf.keras.pd_dataframe_to_tf_dataset(test_ds_pd, label=label)
+print(f"Test loss: {loss}")
+print(f"Test accuracy: {accuracy}")
 
+# Convert the model to TensorFlow Lite
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
 
-# Specify the model.
-model_1 = tfdf.keras.RandomForestModel(verbose=2)
+# Save the TensorFlow Lite model
+with open('heatguard.tflite', 'wb') as f:
+    f.write(tflite_model)
 
-# Train the model.
-model_1.fit(train_ds)
-
-#Evaluate the model
-model_1.compile(metrics=["accuracy"])
-evaluation = model_1.evaluate(test_ds, return_dict=True)
-print()
-
-for name, value in evaluation.items():
-  print(f"{name}: {value:.4f}")
-
-model_1.save("model_1")
-
-tf.saved_model.save(model_1, "./model_1")
-
-print("model summary")
-model_1.summary()
+print("Model saved as heatguard.tflite")
