@@ -52,7 +52,9 @@ print()
 for name, value in evaluation.items():
   print(f"{name}: {value:.4f}")
 
-model_1.save("model2")
+model_1.save("model_1")
+
+tf.saved_model.save(model_1, "./model_1")
 
 print("model summary")
 model_1.summary()
