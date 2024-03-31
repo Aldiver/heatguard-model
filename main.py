@@ -14,7 +14,7 @@ df_labels = df_train['heatstroke']
 
 # Normalize features
 # Define the normalization layer with the input shape explicitly specified
-normalize = layers.Normalization(input_shape=(7,))
+normalize = layers.Normalization(input_shape=(8,))
 normalize.adapt(np.array(df_features))
 
 # Split the data into training and test sets
