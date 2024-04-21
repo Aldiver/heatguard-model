@@ -52,7 +52,7 @@ converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
 # Save the TensorFlow Lite model
-with open('heatguard.tflite', 'wb') as f:
+with open('ModelHeatguard.tflite', 'wb') as f:
     f.write(tflite_model)
 
 print("Model saved as heatguard.tflite")
